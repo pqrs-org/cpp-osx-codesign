@@ -1,0 +1,7 @@
+foonathan/type_safe@v0.2 --cmake header
+fr00b0/nod@v0.5.0 --cmake header
+pqrs-org/cpp-cf-array
+pqrs-org/cpp-cf-run_loop_thread
+pqrs-org/cpp-cf-string
+pqrs-org/cpp-dispatcher
+pqrs-org/cpp-filesystem
