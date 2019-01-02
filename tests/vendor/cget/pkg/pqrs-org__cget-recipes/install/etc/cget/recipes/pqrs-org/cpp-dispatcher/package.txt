@@ -1,1 +1,1 @@
-pqrs-org/cpp-dispatcher@v2.2.3 --cmake header
+pqrs-org/cpp-dispatcher@v2.3.0 --cmake header
