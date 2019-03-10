@@ -20,8 +20,8 @@ namespace codesign {
 inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
   std::optional<std::string> common_name;
 
-  if (auto attributes = pqrs::cf::make_cf_mutable_dictionary()) {
-    if (auto pid_number = pqrs::cf::make_cf_number(static_cast<int64_t>(pid))) {
+  if (auto attributes = cf::make_cf_mutable_dictionary()) {
+    if (auto pid_number = cf::make_cf_number(static_cast<int64_t>(pid))) {
       CFDictionarySetValue(*attributes, kSecGuestAttributePid, *pid_number);
 
       SecCodeRef guest;
@@ -30,10 +30,10 @@ inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
         if (SecCodeCopySigningInformation(guest, kSecCSSigningInformation, &information) == errSecSuccess) {
           if (auto certificates = static_cast<CFArrayRef>(CFDictionaryGetValue(information, kSecCodeInfoCertificates))) {
             if (CFArrayGetCount(certificates) > 0) {
-              auto certificate = pqrs::cf::get_cf_array_value<SecCertificateRef>(certificates, 0);
+              auto certificate = cf::get_cf_array_value<SecCertificateRef>(certificates, 0);
               CFStringRef common_name_string;
               if (SecCertificateCopyCommonName(certificate, &common_name_string) == errSecSuccess) {
-                common_name = pqrs::cf::make_string(common_name_string);
+                common_name = cf::make_string(common_name_string);
                 CFRelease(common_name_string);
               }
             }
