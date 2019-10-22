@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/pqrs-org/cpp-osx-codesign.svg?branch=master)](https://travis-ci.com/pqrs-org/cpp-osx-codesign)
+[![Build Status](https://github.com/pqrs-org/cpp-osx-codesign/workflows/CI/badge.svg)](https://github.com/pqrs-org/cpp-osx-codesign/actions)
 [![License](https://img.shields.io/badge/license-Boost%20Software%20License-blue.svg)](https://github.com/pqrs-org/cpp-osx-codesign/blob/master/LICENSE.md)
 
 # cpp-osx-codesign
