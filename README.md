@@ -1,5 +1,5 @@
 [![Build Status](https://github.com/pqrs-org/cpp-osx-codesign/workflows/CI/badge.svg)](https://github.com/pqrs-org/cpp-osx-codesign/actions)
-[![License](https://img.shields.io/badge/license-Boost%20Software%20License-blue.svg)](https://github.com/pqrs-org/cpp-osx-codesign/blob/master/LICENSE.md)
+[![License](https://img.shields.io/badge/license-Boost%20Software%20License-blue.svg)](https://github.com/pqrs-org/cpp-osx-codesign/blob/main/LICENSE.md)
 
 # cpp-osx-codesign
 
