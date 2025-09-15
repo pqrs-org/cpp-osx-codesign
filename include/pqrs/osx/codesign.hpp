@@ -17,6 +17,42 @@
 namespace pqrs {
 namespace osx {
 namespace codesign {
+
+struct signing_information final {
+  std::optional<std::string> team_id;
+  std::optional<std::string> identifier;
+};
+
+inline signing_information get_signing_information_of_process(pid_t pid) {
+  signing_information result;
+
+  if (auto attributes = cf::make_cf_mutable_dictionary()) {
+    if (auto pid_number = cf::make_cf_number(static_cast<int64_t>(pid))) {
+      CFDictionarySetValue(*attributes, kSecGuestAttributePid, *pid_number);
+
+      SecCodeRef guest;
+      if (SecCodeCopyGuestWithAttributes(nullptr, *attributes, kSecCSDefaultFlags, &guest) == errSecSuccess) {
+        CFDictionaryRef information;
+        if (SecCodeCopySigningInformation(guest, kSecCSSigningInformation, &information) == errSecSuccess) {
+          if (auto team_id = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoTeamIdentifier))) {
+            result.team_id = cf::make_string(team_id);
+          }
+
+          if (auto identifier = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoIdentifier))) {
+            result.identifier = cf::make_string(identifier);
+          }
+
+          CFRelease(information);
+        }
+
+        CFRelease(guest);
+      }
+    }
+  }
+
+  return result;
+}
+
 inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
   std::optional<std::string> common_name;
 
@@ -49,6 +85,7 @@ inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
 
   return common_name;
 }
+
 } // namespace codesign
 } // namespace osx
 } // namespace pqrs
