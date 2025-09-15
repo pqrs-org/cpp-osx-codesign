@@ -27,10 +27,10 @@ int main(int argc, char* argv[]) {
     }
 
     auto signing_information = pqrs::osx::codesign::get_signing_information_of_process(pid);
-    if (auto value = signing_information.team_id) {
+    if (auto value = signing_information.get_team_id()) {
       std::cout << "pid:" << pid << " team_id: " << *value << std::endl;
     }
-    if (auto value = signing_information.identifier) {
+    if (auto value = signing_information.get_identifier()) {
       std::cout << "pid:" << pid << " identifier: " << *value << std::endl;
     }
   }
