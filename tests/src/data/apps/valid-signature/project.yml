@@ -1,0 +1,13 @@
+name: valid-signature
+
+targets:
+  valid-signature:
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: org.pqrs.cpp-osx-codesign.valid-signature
+      CODE_SIGN_IDENTITY: "BD3B995B69EBA8FC153B167F063079D19CCC2834"
+    type: application
+    platform: macOS
+    deploymentTarget: 13.0
+    sources:
+      - path: App.swift
+      - path: Info.plist

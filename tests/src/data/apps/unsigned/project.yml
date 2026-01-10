@@ -1,0 +1,13 @@
+name: unsigned
+
+targets:
+  unsigned:
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: org.pqrs.cpp-osx-codesign.unsigned
+      CODE_SIGN_IDENTITY: "-"
+    type: application
+    platform: macOS
+    deploymentTarget: 13.0
+    sources:
+      - path: App.swift
+      - path: Info.plist
