@@ -46,6 +46,60 @@ private:
   std::optional<std::string> identifier_;
 };
 
+inline cf::cf_ptr<SecRequirementRef> get_anchor_apple_generic_requirement(void) {
+  cf::cf_ptr<SecRequirementRef> result;
+
+  SecRequirementRef req = nullptr;
+  auto status = SecRequirementCreateWithString(
+      CFSTR("anchor apple generic"),
+      kSecCSDefaultFlags,
+      &req);
+
+  if (status == errSecSuccess) {
+    result = req;
+    CFRelease(req);
+  }
+
+  return result;
+}
+
+inline cf::cf_ptr<CFDictionaryRef> get_signing_information_of_code(SecCodeRef code) {
+  cf::cf_ptr<CFDictionaryRef> result;
+
+  if (auto requirement = get_anchor_apple_generic_requirement()) {
+    if (SecCodeCheckValidity(code, kSecCSStrictValidate, *requirement) == errSecSuccess) {
+      CFDictionaryRef information;
+      if (SecCodeCopySigningInformation(code, kSecCSSigningInformation, &information) == errSecSuccess) {
+        result = information;
+
+        CFRelease(information);
+      }
+    }
+  }
+
+  return result;
+}
+
+inline std::optional<std::string> get_common_name_of_signing_information(CFDictionaryRef information) {
+  std::optional<std::string> result;
+
+  if (information) {
+    if (auto certificates = static_cast<CFArrayRef>(CFDictionaryGetValue(information, kSecCodeInfoCertificates))) {
+      if (CFArrayGetCount(certificates) > 0) {
+        auto certificate = cf::get_cf_array_value<SecCertificateRef>(certificates, 0);
+        CFStringRef common_name_string;
+        if (SecCertificateCopyCommonName(certificate, &common_name_string) == errSecSuccess) {
+          result = cf::make_string(common_name_string);
+
+          CFRelease(common_name_string);
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
 inline signing_information get_signing_information_of_process(pid_t pid) {
   signing_information result;
 
@@ -55,11 +109,8 @@ inline signing_information get_signing_information_of_process(pid_t pid) {
 
       SecCodeRef guest;
       if (SecCodeCopyGuestWithAttributes(nullptr, *attributes, kSecCSDefaultFlags, &guest) == errSecSuccess) {
-        CFDictionaryRef information;
-        if (SecCodeCopySigningInformation(guest, kSecCSSigningInformation, &information) == errSecSuccess) {
-          result = signing_information(information);
-
-          CFRelease(information);
+        if (auto information = get_signing_information_of_code(guest)) {
+          result = *information;
         }
 
         CFRelease(guest);
@@ -71,7 +122,7 @@ inline signing_information get_signing_information_of_process(pid_t pid) {
 }
 
 inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
-  std::optional<std::string> common_name;
+  std::optional<std::string> result;
 
   if (auto attributes = cf::make_cf_mutable_dictionary()) {
     if (auto pid_number = cf::make_cf_number(static_cast<int64_t>(pid))) {
@@ -79,20 +130,8 @@ inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
 
       SecCodeRef guest;
       if (SecCodeCopyGuestWithAttributes(nullptr, *attributes, kSecCSDefaultFlags, &guest) == errSecSuccess) {
-        CFDictionaryRef information;
-        if (SecCodeCopySigningInformation(guest, kSecCSSigningInformation, &information) == errSecSuccess) {
-          if (auto certificates = static_cast<CFArrayRef>(CFDictionaryGetValue(information, kSecCodeInfoCertificates))) {
-            if (CFArrayGetCount(certificates) > 0) {
-              auto certificate = cf::get_cf_array_value<SecCertificateRef>(certificates, 0);
-              CFStringRef common_name_string;
-              if (SecCertificateCopyCommonName(certificate, &common_name_string) == errSecSuccess) {
-                common_name = cf::make_string(common_name_string);
-                CFRelease(common_name_string);
-              }
-            }
-          }
-
-          CFRelease(information);
+        if (auto information = get_signing_information_of_code(guest)) {
+          result = get_common_name_of_signing_information(*information);
         }
 
         CFRelease(guest);
@@ -100,7 +139,7 @@ inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
     }
   }
 
-  return common_name;
+  return result;
 }
 
 } // namespace codesign
