@@ -7,11 +7,13 @@
 // (See https://www.boost.org/LICENSE_1_0.txt)
 
 #include <Security/CodeSigning.h>
+#include <filesystem>
 #include <optional>
 #include <pqrs/cf/array.hpp>
 #include <pqrs/cf/dictionary.hpp>
 #include <pqrs/cf/number.hpp>
 #include <pqrs/cf/string.hpp>
+#include <pqrs/cf/url.hpp>
 #include <string>
 
 namespace pqrs {
@@ -63,11 +65,54 @@ inline cf::cf_ptr<SecRequirementRef> get_anchor_apple_generic_requirement(void) 
   return result;
 }
 
-inline cf::cf_ptr<CFDictionaryRef> get_signing_information_of_code(SecCodeRef code) {
+inline cf::cf_ptr<SecCodeRef> get_code_of_process(pid_t pid) {
+  cf::cf_ptr<SecCodeRef> result;
+
+  if (auto attributes = cf::make_cf_mutable_dictionary()) {
+    if (auto pid_number = cf::make_cf_number(static_cast<int64_t>(pid))) {
+      CFDictionarySetValue(*attributes, kSecGuestAttributePid, *pid_number);
+
+      SecCodeRef guest;
+      if (SecCodeCopyGuestWithAttributes(nullptr, *attributes, kSecCSDefaultFlags, &guest) == errSecSuccess) {
+        result = guest;
+
+        CFRelease(guest);
+      }
+    }
+  }
+
+  return result;
+}
+
+inline cf::cf_ptr<SecStaticCodeRef> get_code_of_file(std::filesystem::path file_path) {
+  cf::cf_ptr<SecStaticCodeRef> result;
+
+  if (auto url = cf::make_file_path_url(file_path, false)) {
+    SecStaticCodeRef static_code;
+    if (SecStaticCodeCreateWithPath(*url, kSecCSDefaultFlags, &static_code) == errSecSuccess) {
+      result = static_code;
+
+      CFRelease(static_code);
+    }
+  }
+
+  return result;
+}
+
+inline OSStatus verify_code(SecCodeRef code, SecRequirementRef requirement) {
+  return SecCodeCheckValidity(code, kSecCSStrictValidate, requirement);
+}
+
+inline OSStatus verify_code(SecStaticCodeRef code, SecRequirementRef requirement) {
+  return SecStaticCodeCheckValidity(code, kSecCSStrictValidate, requirement);
+}
+
+template <typename CodeRef>
+cf::cf_ptr<CFDictionaryRef> get_signing_information_of_code(CodeRef code) {
   cf::cf_ptr<CFDictionaryRef> result;
 
   if (auto requirement = get_anchor_apple_generic_requirement()) {
-    if (SecCodeCheckValidity(code, kSecCSStrictValidate, *requirement) == errSecSuccess) {
+    if (verify_code(code, *requirement) == errSecSuccess) {
       CFDictionaryRef information;
       if (SecCodeCopySigningInformation(code, kSecCSSigningInformation, &information) == errSecSuccess) {
         result = information;
@@ -103,18 +148,21 @@ inline std::optional<std::string> get_common_name_of_signing_information(CFDicti
 inline signing_information get_signing_information_of_process(pid_t pid) {
   signing_information result;
 
-  if (auto attributes = cf::make_cf_mutable_dictionary()) {
-    if (auto pid_number = cf::make_cf_number(static_cast<int64_t>(pid))) {
-      CFDictionarySetValue(*attributes, kSecGuestAttributePid, *pid_number);
+  if (auto code = get_code_of_process(pid)) {
+    if (auto information = get_signing_information_of_code(*code)) {
+      result = *information;
+    }
+  }
 
-      SecCodeRef guest;
-      if (SecCodeCopyGuestWithAttributes(nullptr, *attributes, kSecCSDefaultFlags, &guest) == errSecSuccess) {
-        if (auto information = get_signing_information_of_code(guest)) {
-          result = *information;
-        }
+  return result;
+}
 
-        CFRelease(guest);
-      }
+inline signing_information get_signing_information_of_file(std::filesystem::path file_path) {
+  signing_information result;
+
+  if (auto code = get_code_of_file(file_path)) {
+    if (auto information = get_signing_information_of_code(*code)) {
+      result = *information;
     }
   }
 
@@ -124,18 +172,21 @@ inline signing_information get_signing_information_of_process(pid_t pid) {
 inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
   std::optional<std::string> result;
 
-  if (auto attributes = cf::make_cf_mutable_dictionary()) {
-    if (auto pid_number = cf::make_cf_number(static_cast<int64_t>(pid))) {
-      CFDictionarySetValue(*attributes, kSecGuestAttributePid, *pid_number);
+  if (auto code = get_code_of_process(pid)) {
+    if (auto information = get_signing_information_of_code(*code)) {
+      result = get_common_name_of_signing_information(*information);
+    }
+  }
 
-      SecCodeRef guest;
-      if (SecCodeCopyGuestWithAttributes(nullptr, *attributes, kSecCSDefaultFlags, &guest) == errSecSuccess) {
-        if (auto information = get_signing_information_of_code(guest)) {
-          result = get_common_name_of_signing_information(*information);
-        }
+  return result;
+}
 
-        CFRelease(guest);
-      }
+inline std::optional<std::string> find_common_name_of_file(std::filesystem::path file_path) {
+  std::optional<std::string> result;
+
+  if (auto code = get_code_of_file(file_path)) {
+    if (auto information = get_signing_information_of_code(*code)) {
+      result = get_common_name_of_signing_information(*information);
     }
   }
 
