@@ -16,7 +16,7 @@ int main(void) {
     {
       auto actual = pqrs::osx::codesign::get_signing_information_of_file("data/apps/Applications/spoofed-identifier.app");
       expect(pqrs::osx::codesign::anchor_type::apple_generic == actual.get_anchor_type());
-      expect("G43BCU2T37"sv == actual.get_team_id());
+      expect(pqrs::osx::codesign::team_id("G43BCU2T37") == actual.get_team_id());
       expect("com.apple.dummy"sv == actual.get_identifier());
     }
     {
@@ -28,7 +28,7 @@ int main(void) {
     {
       auto actual = pqrs::osx::codesign::get_signing_information_of_file("data/apps/Applications/valid-signature.app");
       expect(pqrs::osx::codesign::anchor_type::apple_generic == actual.get_anchor_type());
-      expect("G43BCU2T37"sv == actual.get_team_id());
+      expect(pqrs::osx::codesign::team_id("G43BCU2T37") == actual.get_team_id());
       expect("org.pqrs.cpp-osx-codesign.valid-signature"sv == actual.get_identifier());
     }
     {

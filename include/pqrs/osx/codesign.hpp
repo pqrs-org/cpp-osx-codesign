@@ -6,6 +6,7 @@
 // Distributed under the Boost Software License, Version 1.0.
 // (See https://www.boost.org/LICENSE_1_0.txt)
 
+#include "codesign/team_id.hpp"
 #include <Security/CodeSigning.h>
 #include <filesystem>
 #include <optional>
@@ -39,7 +40,7 @@ public:
     return anchor_type_;
   }
 
-  const std::optional<std::string>& get_team_id(void) const {
+  const std::optional<team_id>& get_team_id(void) const {
     return team_id_;
   }
 
@@ -50,7 +51,9 @@ public:
 private:
   void init(CFDictionaryRef information) {
     if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoTeamIdentifier))) {
-      team_id_ = cf::make_string(value);
+      if (auto s = cf::make_string(value)) {
+        team_id_ = team_id(*s);
+      }
     }
 
     if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoIdentifier))) {
@@ -58,9 +61,9 @@ private:
     }
   }
 
-  std::optional<std::string> team_id_;
-  std::optional<std::string> identifier_;
   anchor_type anchor_type_{anchor_type::none};
+  std::optional<team_id> team_id_;
+  std::optional<std::string> identifier_;
 };
 
 inline cf::cf_ptr<SecRequirementRef> get_anchor_apple_requirement(void) {
