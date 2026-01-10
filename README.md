@@ -14,6 +14,7 @@ cpp-osx-codesign depends the following classes.
 - [pqrs::cf::number](https://github.com/pqrs-org/cpp-cf-number).
 - [pqrs::cf::string](https://github.com/pqrs-org/cpp-cf-string).
 - [pqrs::cf::url](https://github.com/pqrs-org/cpp-cf-url).
+- [type_safe](https://github.com/foonathan/type_safe)
 
 ## Install
 
