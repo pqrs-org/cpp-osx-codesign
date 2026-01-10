@@ -37,8 +37,26 @@ int main(void) {
 
   "find_common_name_of_process"_test = [] {
     auto actual = pqrs::osx::codesign::find_common_name_of_process(1);
-    expect(actual != std::nullopt);
     expect("Software Signing"sv == *actual);
+  };
+
+  "find_common_name_of_file"_test = [] {
+    {
+      auto actual = pqrs::osx::codesign::find_common_name_of_file("data/apps/Applications/spoofed-identifier.app");
+      expect("Developer ID Application: Fumihiko Takayama (G43BCU2T37)"sv == actual);
+    }
+    {
+      auto actual = pqrs::osx::codesign::find_common_name_of_file("data/apps/Applications/unsigned.app");
+      expect(std::nullopt == actual);
+    }
+    {
+      auto actual = pqrs::osx::codesign::find_common_name_of_file("data/apps/Applications/valid-signature.app");
+      expect("Developer ID Application: Fumihiko Takayama (G43BCU2T37)"sv == actual);
+    }
+    {
+      auto actual = pqrs::osx::codesign::find_common_name_of_file("/System/Applications/Utilities/Terminal.app");
+      expect("Software Signing"sv == actual);
+    }
   };
 
   return 0;
