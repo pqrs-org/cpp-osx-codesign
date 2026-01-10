@@ -20,19 +20,23 @@ namespace pqrs {
 namespace osx {
 namespace codesign {
 
+enum class anchor_type {
+  none,
+  apple,
+  apple_generic,
+};
+
 class signing_information final {
 public:
   signing_information(void) {
   }
 
-  signing_information(CFDictionaryRef information) {
-    if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoTeamIdentifier))) {
-      team_id_ = cf::make_string(value);
-    }
+  signing_information(CFDictionaryRef information, anchor_type anchor_type) : anchor_type_(anchor_type) {
+    init(information);
+  }
 
-    if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoIdentifier))) {
-      identifier_ = cf::make_string(value);
-    }
+  anchor_type get_anchor_type(void) const {
+    return anchor_type_;
   }
 
   const std::optional<std::string>& get_team_id(void) const {
@@ -44,21 +48,47 @@ public:
   }
 
 private:
+  void init(CFDictionaryRef information) {
+    if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoTeamIdentifier))) {
+      team_id_ = cf::make_string(value);
+    }
+
+    if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoIdentifier))) {
+      identifier_ = cf::make_string(value);
+    }
+  }
+
   std::optional<std::string> team_id_;
   std::optional<std::string> identifier_;
+  anchor_type anchor_type_{anchor_type::none};
 };
+
+inline cf::cf_ptr<SecRequirementRef> get_anchor_apple_requirement(void) {
+  cf::cf_ptr<SecRequirementRef> result;
+
+  SecRequirementRef req = nullptr;
+  auto status = SecRequirementCreateWithString(CFSTR("anchor apple"),
+                                               kSecCSDefaultFlags,
+                                               &req);
+  if (status == errSecSuccess) {
+    result = req;
+
+    CFRelease(req);
+  }
+
+  return result;
+}
 
 inline cf::cf_ptr<SecRequirementRef> get_anchor_apple_generic_requirement(void) {
   cf::cf_ptr<SecRequirementRef> result;
 
   SecRequirementRef req = nullptr;
-  auto status = SecRequirementCreateWithString(
-      CFSTR("anchor apple generic"),
-      kSecCSDefaultFlags,
-      &req);
-
+  auto status = SecRequirementCreateWithString(CFSTR("anchor apple generic"),
+                                               kSecCSDefaultFlags,
+                                               &req);
   if (status == errSecSuccess) {
     result = req;
+
     CFRelease(req);
   }
 
@@ -107,22 +137,42 @@ inline OSStatus verify_code(SecStaticCodeRef code, SecRequirementRef requirement
   return SecStaticCodeCheckValidity(code, kSecCSStrictValidate, requirement);
 }
 
+struct code_signing_information final {
+  cf::cf_ptr<CFDictionaryRef> information;
+  anchor_type anchor = anchor_type::none;
+};
+
 template <typename CodeRef>
-cf::cf_ptr<CFDictionaryRef> get_signing_information_of_code(CodeRef code) {
-  cf::cf_ptr<CFDictionaryRef> result;
+std::optional<code_signing_information> get_signing_information_of_code(CodeRef code) {
+  code_signing_information result;
 
-  if (auto requirement = get_anchor_apple_generic_requirement()) {
+  // We need to check the narrower anchor_apple_requirement first.
+  if (auto requirement = get_anchor_apple_requirement()) {
     if (verify_code(code, *requirement) == errSecSuccess) {
-      CFDictionaryRef information;
-      if (SecCodeCopySigningInformation(code, kSecCSSigningInformation, &information) == errSecSuccess) {
-        result = information;
+      result.anchor = anchor_type::apple;
+    }
+  }
 
-        CFRelease(information);
+  if (result.anchor == anchor_type::none) {
+    if (auto requirement = get_anchor_apple_generic_requirement()) {
+      if (verify_code(code, *requirement) == errSecSuccess) {
+        result.anchor = anchor_type::apple_generic;
       }
     }
   }
 
-  return result;
+  if (result.anchor == anchor_type::none) {
+    return std::nullopt;
+  }
+
+  CFDictionaryRef information;
+  if (SecCodeCopySigningInformation(code, kSecCSSigningInformation, &information) == errSecSuccess) {
+    result.information = information;
+    CFRelease(information);
+    return result;
+  }
+
+  return std::nullopt;
 }
 
 inline std::optional<std::string> get_common_name_of_signing_information(CFDictionaryRef information) {
@@ -150,7 +200,7 @@ inline signing_information get_signing_information_of_process(pid_t pid) {
 
   if (auto code = get_code_of_process(pid)) {
     if (auto information = get_signing_information_of_code(*code)) {
-      result = *information;
+      result = signing_information(*information->information, information->anchor);
     }
   }
 
@@ -162,7 +212,7 @@ inline signing_information get_signing_information_of_file(std::filesystem::path
 
   if (auto code = get_code_of_file(file_path)) {
     if (auto information = get_signing_information_of_code(*code)) {
-      result = *information;
+      result = signing_information(*information->information, information->anchor);
     }
   }
 
@@ -174,7 +224,7 @@ inline std::optional<std::string> find_common_name_of_process(pid_t pid) {
 
   if (auto code = get_code_of_process(pid)) {
     if (auto information = get_signing_information_of_code(*code)) {
-      result = get_common_name_of_signing_information(*information);
+      result = get_common_name_of_signing_information(*information->information);
     }
   }
 
@@ -186,7 +236,7 @@ inline std::optional<std::string> find_common_name_of_file(std::filesystem::path
 
   if (auto code = get_code_of_file(file_path)) {
     if (auto information = get_signing_information_of_code(*code)) {
-      result = get_common_name_of_signing_information(*information);
+      result = get_common_name_of_signing_information(*information->information);
     }
   }
 
