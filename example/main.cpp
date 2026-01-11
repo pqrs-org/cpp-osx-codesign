@@ -44,10 +44,10 @@ int main(int argc, char* argv[]) {
     std::cout << "pid:" << pid << std::endl;
 
     auto signing_information = pqrs::osx::codesign::get_signing_information_of_process(pid);
-    std::cout << "    anchor_type: " << signing_information.get_verified_anchor_type() << std::endl;
+    std::cout << "    verified_anchor_type: " << signing_information.get_verified_anchor_type() << std::endl;
 
     if (auto value = signing_information.get_verified_team_id()) {
-      std::cout << "    team_id: " << *value << std::endl;
+      std::cout << "    verified_team_id: " << *value << std::endl;
     }
     if (auto value = signing_information.get_identifier()) {
       std::cout << "    identifier: " << *value << std::endl;
