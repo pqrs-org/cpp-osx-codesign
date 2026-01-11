@@ -6,6 +6,7 @@
 // Distributed under the Boost Software License, Version 1.0.
 // (See https://www.boost.org/LICENSE_1_0.txt)
 
+#include "codesign/anchor_type.hpp"
 #include "codesign/team_id.hpp"
 #include <Security/CodeSigning.h>
 #include <filesystem>
@@ -21,38 +22,16 @@ namespace pqrs {
 namespace osx {
 namespace codesign {
 
-enum class anchor_type {
-  none,
-  apple,
-  apple_generic,
-};
-
 class signing_information final {
 public:
   signing_information(void) {
   }
 
-  signing_information(CFDictionaryRef information, anchor_type anchor_type) : anchor_type_(anchor_type) {
-    init(information);
-  }
-
-  anchor_type get_anchor_type(void) const {
-    return anchor_type_;
-  }
-
-  const std::optional<team_id>& get_team_id(void) const {
-    return team_id_;
-  }
-
-  const std::optional<std::string>& get_identifier(void) const {
-    return identifier_;
-  }
-
-private:
-  void init(CFDictionaryRef information) {
+  signing_information(CFDictionaryRef information, anchor_type anchor_type)
+      : verified_anchor_type_(anchor_type) {
     if (auto value = static_cast<CFStringRef>(CFDictionaryGetValue(information, kSecCodeInfoTeamIdentifier))) {
       if (auto s = cf::make_string(value)) {
-        team_id_ = team_id(*s);
+        verified_team_id_ = team_id(*s);
       }
     }
 
@@ -61,8 +40,21 @@ private:
     }
   }
 
-  anchor_type anchor_type_{anchor_type::none};
-  std::optional<team_id> team_id_;
+  anchor_type get_verified_anchor_type(void) const {
+    return verified_anchor_type_;
+  }
+
+  const std::optional<team_id>& get_verified_team_id(void) const {
+    return verified_team_id_;
+  }
+
+  const std::optional<std::string>& get_identifier(void) const {
+    return identifier_;
+  }
+
+private:
+  anchor_type verified_anchor_type_{anchor_type::none};
+  std::optional<team_id> verified_team_id_;
   std::optional<std::string> identifier_;
 };
 
