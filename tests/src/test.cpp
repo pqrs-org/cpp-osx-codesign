@@ -41,7 +41,7 @@ int main() {
 
   "find_common_name_of_process"_test = [] {
     auto actual = pqrs::osx::codesign::find_common_name_of_process(1);
-    expect("Software Signing"sv == *actual);
+    expect("macOS Software Signing"sv == *actual);
   };
 
   "find_common_name_of_file"_test = [] {
@@ -59,7 +59,7 @@ int main() {
     }
     {
       auto actual = pqrs::osx::codesign::find_common_name_of_file("/System/Applications/Utilities/Terminal.app");
-      expect("Software Signing"sv == actual);
+      expect("macOS Software Signing"sv == actual);
     }
   };
 
