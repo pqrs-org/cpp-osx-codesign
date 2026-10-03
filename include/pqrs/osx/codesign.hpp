@@ -23,8 +23,7 @@ namespace pqrs::osx::codesign {
 
 class signing_information final {
 public:
-  signing_information() {
-  }
+  signing_information() = default;
 
   signing_information(CFDictionaryRef information, anchor_type anchor_type)
       : verified_anchor_type_(anchor_type) {
