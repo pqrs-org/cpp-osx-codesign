@@ -7,9 +7,11 @@
 // (See https://www.boost.org/LICENSE_1_0.txt)
 
 #include "codesign/anchor_type.hpp"
+#include "codesign/signing_requirement.hpp"
 #include "codesign/team_id.hpp"
 #include <Security/CodeSigning.h>
 #include <filesystem>
+#include <mach/message.h>
 #include <optional>
 #include <pqrs/cf/array.hpp>
 #include <pqrs/cf/cf_ptr.hpp>

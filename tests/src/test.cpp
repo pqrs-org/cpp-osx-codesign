@@ -63,5 +63,78 @@ int main() {
     }
   };
 
+  "make_signing_requirement"_test = [] {
+    using namespace pqrs::osx::codesign;
+    expect(make_signing_requirement({}).error() == signing_requirement_error::missing_anchor);
+    expect(make_signing_requirement({
+               .anchor = anchor_type::apple,
+           }) == "anchor apple");
+
+    auto compile = [](const signing_requirement_parameters& parameters) {
+      auto text = make_signing_requirement(parameters);
+      auto string = pqrs::cf::make_cf_string(*text);
+
+      SecRequirementRef raw = nullptr;
+      auto status = SecRequirementCreateWithString(*string,
+                                                   kSecCSDefaultFlags,
+                                                   &raw);
+
+      auto requirement = pqrs::cf::adopt_cf_ptr(raw);
+      expect(status == errSecSuccess) << *text << status;
+
+      return requirement;
+    };
+
+    auto code = get_code_of_file("data/apps/Applications/valid-signature.app");
+    auto requirement = compile({
+        .anchor = anchor_type::apple_generic,
+        .team_id = team_id("G43BCU2T37"),
+        .identifier = "org.pqrs.cpp-osx-codesign.valid-signature",
+    });
+    expect(verify_code(*code, *requirement) == errSecSuccess);
+    expect(verify_code(*get_code_of_file("data/apps/Applications/spoofed-identifier.app"), *requirement) != errSecSuccess);
+    expect(verify_code(*get_code_of_file("data/apps/Applications/unsigned.app"), *requirement) != errSecSuccess);
+    expect(verify_code(*code, *compile({
+                                  .anchor = anchor_type::apple_generic,
+                                  .team_id = team_id("G43BCU2T37"),
+                              })) == errSecSuccess);
+    expect(verify_code(*code, *compile({
+                                  .anchor = anchor_type::apple_generic,
+                                  .team_id = team_id("G43BCU2T37"),
+                                  .identifier = "org.pqrs.cpp-osx-codesign.valid-signature",
+                              })) == errSecSuccess);
+    expect(verify_code(*code, *compile({
+                                  .anchor = anchor_type::apple,
+                                  .team_id = team_id("G43BCU2T37"),
+                              })) != errSecSuccess);
+    expect(verify_code(*code, *compile({
+                                  .anchor = anchor_type::apple_generic,
+                                  .team_id = team_id("AAAAAAAAAA"),
+                              })) != errSecSuccess);
+    expect(verify_code(*code, *compile({
+                                  .anchor = anchor_type::apple_generic,
+                                  .team_id = team_id("G43BCU2T37"),
+                                  .identifier = "org.pqrs.dummy",
+                              })) != errSecSuccess);
+
+    auto invalid = [](const signing_requirement_parameters& parameters) {
+      auto result = make_signing_requirement(parameters);
+      expect(!result);
+      if (!result) {
+        expect(result.error() != signing_requirement_error::missing_anchor);
+      }
+    };
+    invalid({.anchor = anchor_type::none});
+    invalid({.anchor = static_cast<anchor_type>(999)});
+    invalid({.anchor = anchor_type::apple_generic, .team_id = team_id("")});
+    invalid({.anchor = anchor_type::apple_generic, .identifier = ""});
+    invalid({.anchor = anchor_type::apple_generic, .identifier = "a\\b"});
+    invalid({.anchor = anchor_type::apple_generic, .identifier = std::string("a\0b", 3)});
+    invalid({.anchor = anchor_type::apple_generic, .identifier = "a\nb"});
+    invalid({.anchor = anchor_type::apple_generic, .certificate_common_name = ""});
+    invalid({.anchor = anchor_type::apple_generic, .leaf_certificate_sha1 = "abc"});
+    invalid({.anchor = anchor_type::apple_generic, .cdhash = "0123456789abcdef0123456789abcdef012345678g"});
+  };
+
   return 0;
 }
