@@ -134,6 +134,49 @@ int main() {
     invalid({.anchor = anchor_type::apple_generic, .certificate_common_name = ""});
     invalid({.anchor = anchor_type::apple_generic, .leaf_certificate_sha1 = "abc"});
     invalid({.anchor = anchor_type::apple_generic, .cdhash = "0123456789abcdef0123456789abcdef012345678g"});
+
+    auto or_requirement = make_or_signing_requirement({
+        {
+            .anchor = anchor_type::apple_generic,
+            .team_id = team_id("G43BCU2T37"),
+            .identifier = "org.pqrs.cpp-osx-codesign.valid-signature",
+        },
+        {
+            .anchor = anchor_type::apple_generic,
+            .team_id = team_id("G43BCU2T37"),
+            .identifier = "com.apple.dummy",
+        },
+    });
+    expect(or_requirement ==
+           "("
+           "anchor apple generic and "
+           "certificate leaf[subject.OU] = \"G43BCU2T37\" and "
+           "identifier \"org.pqrs.cpp-osx-codesign.valid-signature\""
+           ")"
+           " or "
+           "("
+           "anchor apple generic and "
+           "certificate leaf[subject.OU] = \"G43BCU2T37\" and "
+           "identifier \"com.apple.dummy\""
+           ")");
+    auto or_string = pqrs::cf::make_cf_string(*or_requirement);
+
+    SecRequirementRef raw_or_requirement = nullptr;
+    expect(SecRequirementCreateWithString(*or_string,
+                                          kSecCSDefaultFlags,
+                                          &raw_or_requirement) == errSecSuccess);
+
+    auto compiled_or_requirement = pqrs::cf::adopt_cf_ptr(raw_or_requirement);
+    expect(verify_code(*code,
+                       *compiled_or_requirement) == errSecSuccess);
+    expect(verify_code(*get_code_of_file("data/apps/Applications/spoofed-identifier.app"),
+                       *compiled_or_requirement) == errSecSuccess);
+
+    expect(make_or_signing_requirement({}).error() == signing_requirement_error::empty_requirements);
+    expect(make_or_signing_requirement({{
+                                           .anchor = anchor_type::none,
+                                       }})
+               .error() == signing_requirement_error::invalid_anchor);
   };
 
   return 0;
